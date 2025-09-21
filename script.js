@@ -377,15 +377,14 @@ function displayResults(data) {
                 </div>
                 <div class="col-md-6">
                     <p class="mb-2"><strong>Date Processed:</strong> ${new Date().toLocaleDateString()}</p>
-                    <p class="mb-2"><strong>Data Source:</strong> <span class="badge bg-info">Columns C, F, L, M, T + Database</span></p>
                     <p class="mb-0"><strong>Status:</strong> <span class="text-success">Ready for Download</span></p>
                 </div>
             </div>
             ${booksDatabase.length > 0 ? 
                 `<div class="alert alert-info mt-3 mb-0">
                     <i class="bi bi-database"></i> Using database with ${booksDatabase.length} book specifications.<br>
-                    <small>📋 <strong>Upload columns:</strong> C (SID), F (ISBN), L (Delivery Date), M (Quantity), T (Delivery Dest)<br>
-                    🗄️ <strong>Database lookup:</strong> Uses Column F (ISBN) to find matching specifications</small>
+                    <small><strong>Upload columns:</strong> C (SID), F (ISBN), L (Delivery Date), M (Quantity), T (Delivery Dest)<br>
+                    <strong>Database lookup:</strong> Uses Column F (ISBN) to find matching specifications</small>
                 </div>` : 
                 `<div class="alert alert-danger mt-3 mb-0">
                     <i class="bi bi-exclamation-triangle"></i> Database not available - cannot enhance records with specifications
@@ -411,10 +410,10 @@ function displayResults(data) {
                             <thead>
                                 <tr>
                                     <th>Row</th>
-                                    <th>SID (Col C)</th>
-                                    <th>ISBN (Col F)</th>
-                                    <th>Quantity (Col M)</th>
-                                    <th>Delivery Date (Col L)</th>
+                                    <th>Clays Order No.</th>
+                                    <th>ISBN)</th>
+                                    <th>Quantity</th>
+                                    <th>Delivery Date</th>
                                 </tr>
                             </thead>
                             <tbody>
