@@ -96,13 +96,58 @@ const specData = {
     }
 };
 
+// Paper part number mapping - Part Number to Paper Code, GSM, Microns
+const paperPartMapping = {
+    '20234': { paper: 'DCLAY01', gsm: '52', micron: '114' },
+    '20049': { paper: 'DCLAY02', gsm: '65', micron: '138' },
+    '20100': { paper: 'DCLAY03', gsm: '52', micron: '81' },
+    '20256': { paper: 'DCLAY03', gsm: '52', micron: '81' },
+    '20351': { paper: 'DCLAY04', gsm: '60', micron: '116' },
+    '20110': { paper: 'DCLAY05', gsm: '55', micron: '108' },
+    '20864': { paper: 'DCLAY05', gsm: '55', micron: '108' },
+    '20006': { paper: 'DAMH07', gsm: '80', micron: '98' },
+    '20340': { paper: 'DHYP01', gsm: '60', micron: '108' },
+    '20486': { paper: 'DAMH07', gsm: '80', micron: '98' }
+};
+
+// Function to parse part number string and extract paper specifications
+function parsePartNumber(partNumberString) {
+    if (!partNumberString || typeof partNumberString !== 'string') {
+        return {
+            paperName: '',
+            gsm: '',
+            micron: ''
+        };
+    }
+
+    const partNumber = partNumberString.split(':')[0].trim();
+    const mapping = paperPartMapping[partNumber];
+    
+    if (mapping) {
+        return {
+            paperName: mapping.paper,
+            gsm: mapping.gsm,
+            micron: mapping.micron
+        };
+    } else {
+        console.log(`Unknown part number: "${partNumber}" from string: "${partNumberString}"`);
+        return {
+            paperName: '',
+            gsm: '',
+            micron: ''
+        };
+    }
+}
+
 // Function to decode Cover Spec codes
 function decodeCoverSpec(code) {
-    if (!code || code.length < 6) {
+    const codeStr = code ? String(code).trim() : '';
+    
+    if (!codeStr || codeStr.length < 6) {
         return 'Invalid cover spec code';
     }
 
-    const upperCode = code.toUpperCase().trim();
+    const upperCode = codeStr.toUpperCase();
     const decoded = [];
 
     if (specData.product[upperCode[0]]) {
@@ -185,12 +230,12 @@ function lookupBookDetailsByISBN(isbn) {
     if (bookDetails) return bookDetails;
     
     console.log(`No match found for ISBN: "${isbn}". Database has ${booksDatabase.length} records.`);
-    if (booksDatabase.length > 0) {
-        console.log('Sample database ISBNs:', 
-            booksDatabase.slice(0, 5).map(book => book.ISBN));
-    }
-    
     return null;
+}
+
+// Function to check if data has populated WiNumbers (for Job.xlsx eligibility)
+function hasPopulatedWiNumbers(data) {
+    return data.some(row => row['WiNumber'] && row['WiNumber'] !== '' && row['WiNumber'] !== 0);
 }
 
 // Initialize event listeners when DOM is loaded
@@ -198,14 +243,14 @@ document.addEventListener('DOMContentLoaded', function() {
     const fileInput = document.getElementById('fileUpload');
     const clearBtn = document.getElementById('clearBtn');
     const downloadBtn = document.getElementById('downloadBtn');
-    const instructionsBtn = document.getElementById('instructionsBtn');
+    const downloadJobBtn = document.getElementById('downloadJobBtn');
 
     loadBooksDatabase();
 
     fileInput.addEventListener('change', handleFileUpload);
     clearBtn.addEventListener('click', clearData);
     downloadBtn.addEventListener('click', downloadProcessedFile);
-    instructionsBtn.addEventListener('click', showInstructions);
+    downloadJobBtn.addEventListener('click', downloadJobFile);
 });
 
 // Load books database from data.json
@@ -263,69 +308,142 @@ async function handleFile(file) {
 }
 
 function processDataFromColumns(rawData) {
-    const dataRows = rawData.slice(1);
+    // For daily order files, use row 1 as header and start data from row 2
+    // For ASR files (with WiNumbers), they will have the full 23-column structure
+    
+    // First, let's detect if this is a daily order file or ASR file
+    // Daily order files have 8 columns, ASR files have 23 columns
+    const headerRow = rawData[0];
+    const isDailyOrderFile = headerRow && headerRow.length <= 10; // Daily files have ~8 columns
+    
+    let dataRows;
+    if (isDailyOrderFile) {
+        // Daily order file - use row 0 as header, data starts from row 1
+        dataRows = rawData.slice(1);
+    } else {
+        // ASR file - skip first 2 rows, use row 3 as header, data starts from row 4
+        dataRows = rawData.slice(3);
+    }
+    
+    // Check if this appears to be an ASR file with WiNumbers (Step 3 of workflow)
+    const sampleRow = dataRows[0];
+    // WiNumbers should be numeric values, not string codes like "TGC507"
+    const hasWiNumberData = sampleRow && 
+                           sampleRow[1] && 
+                           sampleRow[1] !== '' && 
+                           sampleRow[1] !== 0 && 
+                           typeof sampleRow[1] === 'number' && 
+                           !isDailyOrderFile; // Only check for WiNumbers if it's not a daily order file
+    const isJobMode = hasWiNumberData;
     
     processedData = dataRows.map((row, index) => {
-        const columnB = row[1] || '';
-        const columnC = row[2] || '';
-        const columnF = row[5] || '';
-        const columnL = row[11] || '';
-        const columnM = row[12] || '';
-        const columnT = row[19] || '';
+        let processedRow;
         
-        const bookDetails = lookupBookDetailsByISBN(columnF);
-        
-        const processedRow = {
-            'Master Ref': bookDetails ? bookDetails['Master Order ID'] || '' : '',
-            'SID': columnC,
-            'Title': bookDetails ? bookDetails.TITLE || '' : '',
-            'ISBN': columnF,
-            'Extent': bookDetails ? bookDetails.Extent || '' : '',
-            'Bind Style': bookDetails ? bookDetails['Bind Style'] || '' : '',
-            'Trim Height': bookDetails ? bookDetails['Trim Height'] || '' : '',
-            'Trim Width': bookDetails ? bookDetails['Trim Width'] || '' : '',
-            'Spine': bookDetails ? bookDetails['Cover Spine'] || '' : '',
-            'Delivery Date': columnL ? formatDate(columnL) : '',
-            'Quantity': columnM,
-            'Cover Spec': bookDetails ? bookDetails['Cover Spec'] || '' : '',
-            'Cover Spec Decoded': '',
-            'Price UK': bookDetails ? bookDetails['Price UK'] || 'Unpriced' : 'Unpriced',
-            'Price US': bookDetails ? bookDetails['Price US'] || 'Unpriced' : 'Unpriced',
-            'Price CAN': bookDetails ? bookDetails['Price CAN'] || 'Unpriced' : 'Unpriced',
-            'Paper': bookDetails ? bookDetails.Paper || '' : '',
-            'GSM': bookDetails ? bookDetails.Gsm || '' : '',
-            'Micron': bookDetails ? bookDetails.Micron || '' : '',
-            'Packing': bookDetails ? bookDetails.Packing || '' : '',
-            'Bleeds': bookDetails ? bookDetails.Bleeds || '' : '',
-            'Delivery Dest': columnT,
+        if (isJobMode) {
+            // This is an ASR file with populated data - use direct column mapping
+            processedRow = {
+                'Master Ref': row[0] || '',
+                'WiNumber': row[1] || '',
+                'OrderRef': row[2] || '',
+                'Title': row[3] || '',
+                'ISBN': row[4] || '',
+                'Extent': row[5] || '',
+                'Bind Style': row[6] || '',
+                'Trim Height': row[7] || '',
+                'Trim Width': row[8] || '',
+                'Spine': row[9] || '',
+                'Delivery Date': row[10] || '',
+                'Quantity': row[11] || '',
+                'Cover Spec': row[12] || '',
+                'Cover Spec Decoded': row[13] || '',
+                'Price UK': row[14] || '',
+                'Price US': row[15] || '',
+                'Price CAN': row[16] || '',
+                'Paper': row[17] || '',
+                'GSM': row[18] || '',
+                'Micron': row[19] || '',
+                'Packing': row[20] || '',
+                'Bleeds': row[21] || '',
+                'Delivery Dest': row[22] || '',
+                
+                '_displayOnly': {
+                    'Row': index + 1,
+                    'Master Ref (Upload)': row[0] || '',
+                    'Part Number (Upload)': '',
+                    'Customer Name': '',
+                    'Customer Order Ref': '',
+                    'Database Match': 'N/A',
+                    'Enhanced': false
+                }
+            };
+        } else {
+            // This is a raw daily upload - original processing logic
+            const columnA = row[0] || '';
+            const columnB = row[1] || '';
+            const columnC = row[2] || '';
+            const columnD = row[3] || '';
+            const columnE = row[4] || '';
+            const columnF = row[5] || '';
+            const columnG = row[6] || '';
+            const columnH = row[7] || '';
             
-            '_displayOnly': {
-                'Row': index + 1,
-                'Master Order ID (Column B)': columnB,
-                'Customer Name': bookDetails ? bookDetails['Customer Name'] || '' : '',
-                'Customer Order Ref': bookDetails ? bookDetails['Customer Order Ref'] || '' : '',
-                'Database Match': bookDetails ? 'Yes' : 'No',
-                'Enhanced': bookDetails ? true : false
+            const bookDetails = lookupBookDetailsByISBN(columnC);
+            const parsedPaper = parsePartNumber(columnG);
+            
+            processedRow = {
+                'Master Ref': columnA || (bookDetails ? bookDetails['Master Order ID'] || '' : ''),
+                'WiNumber': '',
+                'OrderRef': columnB,
+                'Title': bookDetails ? bookDetails.TITLE || '' : '',
+                'ISBN': columnC,
+                'Extent': bookDetails ? bookDetails.Extent || '' : '',
+                'Bind Style': bookDetails ? bookDetails['Bind Style'] || '' : '',
+                'Trim Height': bookDetails ? bookDetails['Trim Height'] || '' : '',
+                'Trim Width': bookDetails ? bookDetails['Trim Width'] || '' : '',
+                'Spine': bookDetails ? bookDetails['Cover Spine'] || '' : '',
+                'Delivery Date': columnD ? formatDate(columnD) : '',
+                'Quantity': columnE,
+                'Cover Spec': columnF || (bookDetails ? bookDetails['Cover Spec'] || '' : ''),
+                'Cover Spec Decoded': '',
+                'Price UK': bookDetails ? bookDetails['Price UK'] || 'Unpriced' : 'Unpriced',
+                'Price US': bookDetails ? bookDetails['Price US'] || 'Unpriced' : 'Unpriced',
+                'Price CAN': bookDetails ? bookDetails['Price CAN'] || 'Unpriced' : 'Unpriced',
+                'Paper': parsedPaper.paperName || (bookDetails ? bookDetails.Paper || '' : ''),
+                'GSM': parsedPaper.gsm || (bookDetails ? bookDetails.Gsm || '' : ''),
+                'Micron': parsedPaper.micron || (bookDetails ? bookDetails.Micron || '' : ''),
+                'Packing': bookDetails ? bookDetails.Packing || '' : '',
+                'Bleeds': bookDetails ? bookDetails.Bleeds || '' : '',
+                'Delivery Dest': columnH,
+                
+                '_displayOnly': {
+                    'Row': index + 1,
+                    'Master Ref (Upload)': columnA,
+                    'Part Number (Upload)': columnG,
+                    'Customer Name': bookDetails ? bookDetails['Customer Name'] || '' : '',
+                    'Customer Order Ref': bookDetails ? bookDetails['Customer Order Ref'] || '' : '',
+                    'Database Match': bookDetails ? 'Yes' : 'No',
+                    'Enhanced': bookDetails ? true : false
+                }
+            };
+            
+            const coverSpec = columnF || (bookDetails ? bookDetails['Cover Spec'] || '' : '');
+            if (coverSpec) {
+                processedRow['Cover Spec Decoded'] = decodeCoverSpec(coverSpec);
             }
-        };
-        
-        const coverSpec = processedRow['Cover Spec'];
-        if (coverSpec) {
-            processedRow['Cover Spec Decoded'] = decodeCoverSpec(coverSpec);
         }
         
         return processedRow;
-    }).filter(row => row['ISBN'] || row['SID']);
+    }).filter(row => row['ISBN'] || row['OrderRef']);
 
-    // Calculate stats AFTER filtering to ensure accurate counts
-    const matchedCount = processedData.filter(row => row._displayOnly['Database Match'] === 'Yes').length;
-    const notFoundCount = processedData.filter(row => row._displayOnly['Database Match'] === 'No').length;
+    const matchedCount = isJobMode ? 0 : processedData.filter(row => row._displayOnly['Database Match'] === 'Yes').length;
+    const notFoundCount = isJobMode ? 0 : processedData.filter(row => row._displayOnly['Database Match'] === 'No').length;
 
     processedData.stats = {
         total: processedData.length,
         matched: matchedCount,
         enhanced: matchedCount,
-        notFound: notFoundCount
+        notFound: notFoundCount,
+        isJobMode: isJobMode
     };
 
     displayResults(processedData);
@@ -359,42 +477,107 @@ function displayResults(data) {
         return;
     }
 
-    const stats = data.stats || { total: data.length, matched: 0, enhanced: 0, notFound: 0 };
-    const missingRecords = data.filter(row => row._displayOnly['Database Match'] === 'No');
+    const stats = data.stats || { total: data.length, matched: 0, enhanced: 0, notFound: 0, isJobMode: false };
+    const missingRecords = stats.isJobMode ? [] : data.filter(row => row._displayOnly['Database Match'] === 'No');
+    const hasWiNumbers = hasPopulatedWiNumbers(data);
     
     let html = '<div class="fade-in">';
     
-    // Processing Summary
-    html += `
-        <div class="summary-card">
-            <h5><i class="bi bi-clipboard-check"></i> Processing Summary</h5>
-            <div class="row">
-                <div class="col-md-6">
-                    <p class="mb-2"><strong>File:</strong> ${originalFilename}</p>
-                    <p class="mb-2"><strong>Records Processed:</strong> ${stats.total}</p>
-                    <p class="mb-2"><strong>Database Matches:</strong> <span class="badge bg-success">${stats.matched}</span></p>
-                    <p class="mb-2"><strong>Missing from Database:</strong> <span class="badge bg-warning">${stats.notFound}</span></p>
+    if (stats.isJobMode) {
+        html += `
+            <div class="summary-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0"><i class="bi bi-file-earmark-check"></i> ASR File Loaded (Job Mode)</h5>
                 </div>
-                <div class="col-md-6">
-                    <p class="mb-2"><strong>Date Processed:</strong> ${new Date().toLocaleDateString()}</p>
-                    <p class="mb-0"><strong>Status:</strong> <span class="text-success">Ready for Download</span></p>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-2"><strong>File:</strong> ${originalFilename}</p>
+                        <p class="mb-2"><strong>Records Processed:</strong> ${stats.total}</p>
+                        <p class="mb-2"><strong>WiNumbers Found:</strong> <span class="badge bg-success">${stats.total}</span></p>
+                        <p class="mb-2"><strong>Mode:</strong> <span class="badge bg-info">Job Export Ready</span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-2"><strong>Date Processed:</strong> ${new Date().toLocaleDateString()}</p>
+                        <p class="mb-0"><strong>Status:</strong> <span class="text-success">Ready for Job.xlsx Export</span></p>
+                    </div>
+                </div>
+                <div class="alert alert-info mt-3 mb-0">
+                    <i class="bi bi-info-circle"></i> <strong>Job Mode Detected:</strong> This appears to be an ASR file with populated WiNumbers. Database lookup has been skipped. You can now download the Job.xlsx file directly.
                 </div>
             </div>
-            ${booksDatabase.length > 0 ? 
-                `<div class="alert alert-info mt-3 mb-0">
-                    <i class="bi bi-database"></i> Using database with ${booksDatabase.length} book specifications.<br>
-                    <small><strong>Upload columns:</strong> C (SID), F (ISBN), L (Delivery Date), M (Quantity), T (Delivery Dest)<br>
-                    <strong>Database lookup:</strong> Uses Column F (ISBN) to find matching specifications</small>
-                </div>` : 
-                `<div class="alert alert-danger mt-3 mb-0">
-                    <i class="bi bi-exclamation-triangle"></i> Database not available - cannot enhance records with specifications
-                </div>`
-            }
-        </div>
-    `;
+        `;
+    } else {
+        html += `
+            <div class="summary-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0"><i class="bi bi-clipboard-check"></i> Processing Summary</h5>
+                    <button type="button" class="btn btn-outline-primary btn-sm hover-btn" id="copyOrderAcceptanceBtn">
+                        <i class="bi bi-download"></i> Download Order Acceptance
+                    </button>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-2"><strong>File:</strong> ${originalFilename}</p>
+                        <p class="mb-2"><strong>Records Processed:</strong> ${stats.total}</p>
+                        <p class="mb-2"><strong>Database Matches:</strong> <span class="badge bg-success">${stats.matched}</span></p>
+                        <p class="mb-2"><strong>Missing from Database:</strong> <span class="badge bg-warning">${stats.notFound}</span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-2"><strong>Date Processed:</strong> ${new Date().toLocaleDateString()}</p>
+                        <p class="mb-0"><strong>Status:</strong> <span class="text-success">Ready for Download</span></p>
+                    </div>
+                </div>
+                ${booksDatabase.length > 0 ? 
+                    `<div class="alert alert-info mt-3 mb-0">
+                        <i class="bi bi-database"></i> Using database with ${booksDatabase.length} book specifications.
+                    </div>` : 
+                    `<div class="alert alert-danger mt-3 mb-0">
+                        <i class="bi bi-exclamation-triangle"></i> Database not available - cannot enhance records with specifications
+                    </div>`
+                }
+            </div>
+        `;
+    }
 
-    // Missing Records Section (only if there are missing records)
-    if (missingRecords.length > 0) {
+    if (hasWiNumbers) {
+        const wiNumbers = [...new Set(data.filter(row => row['WiNumber']).map(row => row['WiNumber']))];
+        html += `
+            <div class="job-export-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">
+                        <i class="bi bi-file-earmark-spreadsheet"></i> Job Export Ready
+                    </h5>
+                    <button type="button" class="btn btn-info btn-sm hover-btn" onclick="downloadJobFile()">
+                        <i class="bi bi-download"></i> Download Job.xlsx
+                    </button>
+                </div>
+                <div class="row">
+                    <div class="col-md-8">
+                        <p class="mb-2"><strong>Job Records:</strong> ${stats.total} records ready for export</p>
+                        <p class="mb-2"><strong>Primary Keys:</strong> ${wiNumbers.length} unique WiNumber${wiNumbers.length > 1 ? 's' : ''} (${wiNumbers.join(', ')})</p>
+                        <p class="mb-2"><strong>Binding Method:</strong> Converted to "Limp P/Bound" format</p>
+                        <p class="mb-0"><strong>Mapping:</strong> OrderRef → poNum, Title → description, ISBN → U_LimpISBN</p>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="bg-white rounded p-3 border">
+                            <h6 class="text-muted mb-2">Sample Job Record:</h6>
+                            <small>
+                                <strong>poNum:</strong> ${data[0]['OrderRef'] || 'N/A'}<br>
+                                <strong>description:</strong> ${(data[0]['Title'] || '').toString().substring(0, 20) || 'N/A'}...<br>
+                                <strong>U_BindingMethod:</strong> Limp P/Bound<br>
+                                <strong>scheduledShipDate:</strong> ${data[0]['Delivery Date'] || 'N/A'}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <div class="alert alert-success mt-3 mb-0">
+                    <i class="bi bi-check-circle"></i> <strong>Ready for Export:</strong> Job.xlsx file contains all required fields mapped from ASR Daily Order data.
+                </div>
+            </div>
+        `;
+    }
+
+    if (missingRecords.length > 0 && !stats.isJobMode) {
         html += `
             <div class="order-result no-results">
                 <div class="order-title d-flex justify-content-between align-items-center">
@@ -406,12 +589,13 @@ function displayResults(data) {
                 <div class="alert alert-warning">
                     <p class="mb-2"><strong>The following records were not found in the database:</strong></p>
                     <div class="table-responsive">
-                        <table class="table table-sm" id="missingRecordsTable">
+                        <table class="table table-sm">
                             <thead>
                                 <tr>
                                     <th>Row</th>
-                                    <th>Clays Order No.</th>
-                                    <th>ISBN)</th>
+                                    <th>Master Ref</th>
+                                    <th>OrderRef</th>
+                                    <th>ISBN</th>
                                     <th>Quantity</th>
                                     <th>Delivery Date</th>
                                 </tr>
@@ -423,7 +607,8 @@ function displayResults(data) {
             html += `
                 <tr>
                     <td>${record._displayOnly['Row']}</td>
-                    <td><strong>${record['SID']}</strong></td>
+                    <td><strong>${record._displayOnly['Master Ref (Upload)']}</strong></td>
+                    <td><strong>${record['OrderRef']}</strong></td>
                     <td><strong>${record['ISBN']}</strong></td>
                     <td>${record['Quantity']}</td>
                     <td>${record['Delivery Date']}</td>
@@ -435,11 +620,10 @@ function displayResults(data) {
                             </tbody>
                         </table>
                     </div>
-                    <small class="text-muted">These records will be included in the download but will only contain the uploaded data (columns C, F, L, M, T) without enhanced specifications from the database.</small>
                 </div>
             </div>
         `;
-    } else {
+    } else if (stats.matched > 0 && !stats.isJobMode) {
         html += `
             <div class="alert alert-success fade-in">
                 <i class="bi bi-check-circle"></i> <strong>All records found in database!</strong><br>
@@ -452,10 +636,13 @@ function displayResults(data) {
     
     resultsContainer.innerHTML = html;
     
-    // Show action buttons and enable download
-    // Show action buttons and enable download
+    if (!stats.isJobMode) {
+        attachOrderAcceptanceListener();
+    }
+    
     document.getElementById('actionButtons').style.display = 'flex';
     document.getElementById('downloadBtn').disabled = false;
+    document.getElementById('downloadJobBtn').disabled = !hasWiNumbers;
 }
 
 function showProgress() {
@@ -504,7 +691,7 @@ function clearData() {
     document.getElementById('results').innerHTML = '';
     document.getElementById('actionButtons').style.display = 'none';
     document.getElementById('downloadBtn').disabled = true;
-    document.getElementById('copyResultBtn').disabled = true;
+    document.getElementById('downloadJobBtn').disabled = true;
     processedData = [];
     originalFilename = '';
 }
@@ -522,7 +709,6 @@ function downloadProcessedFile() {
             const cleanRow = { ...row };
             delete cleanRow._displayOnly;
             
-            // Convert ISBN to number if it's a valid number
             if (cleanRow.ISBN && !isNaN(cleanRow.ISBN)) {
                 cleanRow.ISBN = parseInt(cleanRow.ISBN, 10);
             }
@@ -535,17 +721,18 @@ function downloadProcessedFile() {
         // Format the ISBN column as number with no decimal places
         const range = XLSX.utils.decode_range(ws['!ref']);
         for (let R = range.s.r + 1; R <= range.e.r; R++) {
-            const isbnCell = XLSX.utils.encode_cell({ r: R, c: 3 }); // ISBN is column D (index 3)
+            const isbnCell = XLSX.utils.encode_cell({ r: R, c: 4 }); // ISBN is column E (index 4)
             if (ws[isbnCell] && ws[isbnCell].v) {
-                ws[isbnCell].t = 'n'; // Set cell type to number
-                ws[isbnCell].z = '0'; // Set number format to integer (no decimal places)
+                ws[isbnCell].t = 'n';
+                ws[isbnCell].z = '0';
             }
         }
         
         XLSX.utils.book_append_sheet(wb, ws, "ASR Daily Order");
         
-        const timestamp = new Date().toISOString().slice(0, 10);
-        const filename = `ASR_Daily_Order_${originalFilename}_${timestamp}.xlsx`;
+        const now = new Date();
+        const dateTime = now.toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-');
+        const filename = `ASR_Daily_Order_${dateTime}.xlsx`;
         
         XLSX.writeFile(wb, filename);
         
@@ -563,6 +750,149 @@ function downloadProcessedFile() {
     }
 }
 
+function downloadJobFile() {
+    if (processedData.length === 0) {
+        alert('No data to download. Please upload and process a file first.');
+        return;
+    }
+
+    if (!hasPopulatedWiNumbers(processedData)) {
+        alert('Job.xlsx requires populated WiNumber values. Please upload an ASR file with WiNumber data first.');
+        return;
+    }
+
+    try {
+        const wb = XLSX.utils.book_new();
+        
+        const jobData = processedData.map(row => {
+            return {
+                '_ACTION_': 'U',
+                'primaryKey': row['WiNumber'],
+                'job': row['WiNumber'], // Set job equal to primaryKey
+                'poNum': row['OrderRef'],
+                'description': row['Title'],
+                'U_LimpISBN': row['ISBN'],
+                'U_BindingMethod': 'Limp P/Bound',
+                'U_HeadTrim': '3mm',
+                'description2': row['Packing'],
+                'U_fileDate': '',
+                'U_ProcessedDate': new Date().toLocaleDateString(),
+                'scheduledShipDate': row['Delivery Date'],
+                'shipToJobContact': '',
+                'U_CoverPrice_UK': row['Price UK'],
+                'U_CoverPrice_US': row['Price US'],
+                'U_CoverPrice_CAD': row['Price CAN']
+            };
+        });
+        
+        const ws = XLSX.utils.json_to_sheet(jobData);
+        
+        // Format the ISBN column as number
+        const range = XLSX.utils.decode_range(ws['!ref']);
+        for (let R = range.s.r + 1; R <= range.e.r; R++) {
+            const isbnCell = XLSX.utils.encode_cell({ r: R, c: 5 }); // U_LimpISBN is column F
+            if (ws[isbnCell] && ws[isbnCell].v) {
+                ws[isbnCell].t = 'n';
+                ws[isbnCell].z = '0';
+            }
+        }
+        
+        ws['!cols'] = [
+            { wch: 10 }, { wch: 12 }, { wch: 8 }, { wch: 15 }, { wch: 40 }, { wch: 15 },
+            { wch: 15 }, { wch: 10 }, { wch: 30 }, { wch: 12 }, { wch: 15 }, { wch: 15 },
+            { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }
+        ];
+        
+        XLSX.utils.book_append_sheet(wb, ws, "Job");
+        
+        const filename = `Job.xlsx`;
+        
+        XLSX.writeFile(wb, filename);
+        
+        const btn = document.getElementById('downloadJobBtn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check-circle"></i> Downloaded!';
+        btn.classList.remove('btn-info');
+        btn.classList.add('btn-success');
+        
+        setTimeout(() => {
+            btn.innerHTML = originalText;
+            btn.classList.remove('btn-success');
+            btn.classList.add('btn-info');
+        }, 3000);
+        
+    } catch (error) {
+        console.error('Error downloading Job file:', error);
+        alert('Error creating Job file. Please try again.');
+    }
+}
+
+function downloadOrderAcceptance() {
+    if (processedData.length === 0) {
+        alert('No data to download. Please upload and process a file first.');
+        return;
+    }
+
+    try {
+        const wb = XLSX.utils.book_new();
+        
+        const orderAcceptanceData = processedData.map(row => {
+            return {
+                'Master Ref': row['Master Ref'] || '',
+                'OrderRef': row['OrderRef'] || '',
+                'ISBN': row['ISBN'] || '',
+                'Title': row['Title'] || '',
+                'Quantity': row['Quantity'] || ''
+            };
+        });
+        
+        const ws = XLSX.utils.json_to_sheet(orderAcceptanceData);
+        
+        const range = XLSX.utils.decode_range(ws['!ref']);
+        for (let R = range.s.r + 1; R <= range.e.r; R++) {
+            const isbnCell = XLSX.utils.encode_cell({ r: R, c: 2 });
+            if (ws[isbnCell] && ws[isbnCell].v) {
+                ws[isbnCell].t = 'n';
+                ws[isbnCell].z = '0';
+            }
+        }
+        
+        ws['!cols'] = [
+            { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 60 }, { wch: 10 }
+        ];
+        
+        XLSX.utils.book_append_sheet(wb, ws, "Order Acceptance");
+        
+        const now = new Date();
+        const dateTime = now.toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-');
+        const filename = `ASR_Order_Acceptance_${dateTime}.xlsx`;
+        
+        XLSX.writeFile(wb, filename);
+        
+        const btn = document.getElementById('copyOrderAcceptanceBtn');
+        if (btn) {
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check-circle"></i> Downloaded!';
+            
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+            }, 3000);
+        }
+        
+    } catch (error) {
+        console.error('Error downloading order acceptance file:', error);
+        alert('Error creating download file. Please try again.');
+    }
+}
+
+function attachOrderAcceptanceListener() {
+    const btn = document.getElementById('copyOrderAcceptanceBtn');
+    if (btn) {
+        btn.removeEventListener('click', downloadOrderAcceptance);
+        btn.addEventListener('click', downloadOrderAcceptance);
+    }
+}
+
 function copyMissingRecords() {
     const missingRecords = processedData.filter(row => row._displayOnly['Database Match'] === 'No');
     
@@ -577,16 +907,12 @@ function copyMissingRecords() {
     clipboardText += `Date: ${new Date().toLocaleString()}\n`;
     clipboardText += `Total Missing: ${missingRecords.length}\n\n`;
     
-    clipboardText += `Row\tSID (Col C)\tISBN (Col F)\tQuantity (Col M)\tDelivery Date (Col L)\n`;
-    clipboardText += `---\t----------\t-----------\t---------------\t-------------------\n`;
-    
     missingRecords.forEach(record => {
-        clipboardText += `${record._displayOnly['Row']}\t${record['SID']}\t${record['ISBN']}\t${record['Quantity']}\t${record['Delivery Date']}\n`;
+        clipboardText += `${record._displayOnly['Row']}\t${record._displayOnly['Master Ref (Upload)']}\t${record['OrderRef']}\t${record['ISBN']}\t${record['Quantity']}\t${record['Delivery Date']}\n`;
     });
     
     navigator.clipboard.writeText(clipboardText)
         .then(() => {
-            // Find the button that was clicked and show success feedback
             const buttons = document.querySelectorAll('button[onclick="copyMissingRecords()"]');
             if (buttons.length > 0) {
                 const btn = buttons[0];
@@ -606,9 +932,4 @@ function copyMissingRecords() {
             console.error('Failed to copy text: ', err);
             alert('Failed to copy to clipboard. Please try again.');
         });
-}
-
-function showInstructions() {
-    const modal = new bootstrap.Modal(document.getElementById('instructionsModal'));
-    modal.show();
 }

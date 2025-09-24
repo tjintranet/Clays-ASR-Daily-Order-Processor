@@ -103,6 +103,14 @@
             margin-top: 1rem;
         }
         
+        .job-export-card {
+            background: #e8f4ff;
+            border: 1px solid #b8daff;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-top: 1rem;
+        }
+        
         .fade-in {
             animation: fadeIn 0.5s ease-in;
         }
@@ -161,20 +169,13 @@
         <div class="row justify-content-center">
             <div class="col-md-10">
                 <div class="card shadow">
-                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <div class="card-header bg-primary text-white">
                         <h3 class="mb-0">ASR Daily Order Processor</h3>
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-light btn-sm hover-btn" id="instructionsBtn">
-                                <i class="bi bi-info-circle"></i> Instructions
-                            </button>
-                        </div>
                     </div>
                     <div class="card-body">
                         <div class="mb-4">
                             <label for="fileUpload" class="form-label">Upload Daily Excel File:</label>
                             <input type="file" class="form-control" id="fileUpload" accept=".xlsx,.xls">
-                           <!-- <div class="form-text">Select your daily Excel file to process. Only columns C, F, L, M, and T will be used from the upload.</div> --> 
-                            
                             <div class="upload-progress mt-3" style="display: none;">
                                 <div class="progress">
                                     <div class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0%"></div>
@@ -194,52 +195,15 @@
                                 <span class="d-none d-md-inline">Download Processed File</span>
                                 <span class="d-inline d-md-none">Download</span>
                             </button>
+                            <button type="button" class="btn btn-info hover-btn px-4" id="downloadJobBtn" disabled>
+                                <i class="bi bi-file-earmark-spreadsheet"></i>
+                                <span class="d-none d-md-inline">Download Job.xlsx</span>
+                                <span class="d-inline d-md-none">Job File</span>
+                            </button>
                         </div>
                         
                         <div id="results" class="result-section"></div>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Instructions Modal -->
-    <div class="modal fade" id="instructionsModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Processing Instructions</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <h6><i class="bi bi-1-circle"></i> Upload Your Excel File</h6>
-                    <p>Upload your daily Excel file containing order information. The file should include columns for Customer Name, Master Ref, ISBN, Title, and other order details.</p>
-                    
-                    <h6><i class="bi bi-2-circle"></i> Database Integration</h6>
-                    <p>The application automatically cross-references your upload with the existing book specification database (data.json) to enhance records with additional details like paper specifications, pricing, and technical data.</p>
-                    
-                    <h6><i class="bi bi-3-circle"></i> Automatic Processing</h6>
-                    <p>The application will automatically parse your file, decode cover specifications, and transform the data into the ASR Daily Order format with enhanced information from the database.</p>
-                    
-                    <h6><i class="bi bi-4-circle"></i> Review & Download</h6>
-                    <p>Review the processed data in the preview table, then download the transformed Excel file ready for production use.</p>
-                    
-                    <h6><i class="bi bi-gear"></i> Supported Features</h6>
-                    <ul>
-                        <li>Database integration for enhanced book specifications</li>
-                        <li>Cover specification decoding (C406P2 → Cover, 4 Process Colours, etc.)</li>
-                        <li>Automatic data validation and formatting</li>
-                        <li>Paper specifications (GSM, Micron values) from database</li>
-                        <li>Multi-region pricing (UK, US, Canada) enhancement</li>
-                        <li>Summary statistics and processing report</li>
-                        <li>Export to Excel format matching ASR requirements</li>
-                    </ul>
-                    
-                    <h6><i class="bi bi-database"></i> Database Requirements</h6>
-                    <p>For full functionality, ensure <code>data.json</code> is available in the same directory. The application will work without it but won't provide enhanced specifications.</p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>

@@ -1,26 +1,99 @@
 # ASR Daily Order Processor
 
-A web application for processing daily Excel uploads and transforming them into ASR Daily Order format with database enhancement and cover specification decoding.
+A web application for processing daily Excel uploads and transforming them into ASR Daily Order format with database enhancement, cover specification decoding, and Job.xlsx generation for production systems.
 
 ## Features
 
+### Two-Stage Workflow Support
+The application supports a complete two-stage workflow:
+1. **Stage 1**: Process daily order uploads → Generate ASR Daily Order file (with blank WiNumbers)
+2. **Stage 2**: Process ASR file with populated WiNumbers → Generate Job.xlsx for production
+
 ### File Processing
-- **Excel Upload**: Simple file input for .xlsx and .xls files
-- **Column Extraction**: Uses only specific columns (C, F, L, M, T) from uploads
+- **Excel Upload**: Handles .xlsx and .xls files with automatic structure detection
+- **Smart File Detection**: Automatically detects daily order files vs ASR files
+- **Flexible Structure**: Supports daily files with headers at row 0, ASR files with multi-row headers
+- **Column Extraction**: Daily files use columns A-H, ASR files use full 23-column structure
 - **Database Integration**: Cross-references ISBN numbers with existing book specifications
 - **Cover Spec Decoding**: Automatically decodes cover specification codes into readable format
 
 ### Data Enhancement
-- **ISBN Lookup**: Uses Column F (ISBN) to find matching records in database
+- **ISBN Lookup**: Uses ISBN to find matching records in database
 - **Complete Specifications**: Pulls title, dimensions, pricing, paper specs, and more from database
-- **Master Ref Integration**: Includes Master Order ID as Column A in output
-- **Clean Export**: Downloads properly formatted Excel files
+- **Master Ref Integration**: Uses Master Ref from upload or database as fallback
+- **Part Number Mapping**: Maps part numbers to paper specifications (DCLAY01, DCLAY02, etc.)
+- **Paper String Parsing**: Extracts paper name, GSM, and micron values from part numbers
+- **WiNumber Column**: Adds blank WiNumber column in Stage 1 for work instruction numbers
+
+### Job.xlsx Generation
+- **Production Ready**: Generates Job.xlsx files formatted for production systems
+- **Smart Detection**: Only available when WiNumbers are populated (Stage 2)
+- **Field Mapping**: Maps ASR data to Job system requirements
+- **Binding Method**: Converts all binding styles to "Limp P/Bound" format
+- **Static Filename**: Downloads as "Job.xlsx" (no timestamp)
+
+### Part Number Mapping
+
+The application maps part numbers to paper specifications:
+
+| Part Number | Paper Code | GSM | Micron |
+|-------------|------------|-----|--------|
+| 20234 | DCLAY01 | 52 | 114 |
+| 20049 | DCLAY02 | 65 | 138 |
+| 20100 | DCLAY03 | 52 | 81 |
+| 20256 | DCLAY03 | 52 | 81 |
+| 20351 | DCLAY04 | 60 | 116 |
+| 20110 | DCLAY05 | 55 | 108 |
+| 20864 | DCLAY05 | 55 | 108 |
+| 20006 | DAMH07 | 80 | 98 |
+| 20340 | DHYP01 | 60 | 108 |
+| 20486 | DAMH07 | 80 | 98 |
 
 ### User Interface
+- **Dual Mode Display**: Different interfaces for daily processing vs Job generation
 - **Processing Summary**: Shows file statistics and database match results
-- **Missing Records Alert**: Displays records not found in database with copy functionality
+- **Job Export Ready**: Displays when ASR files with WiNumbers are processed
+- **Order Acceptance Export**: Generate order confirmation summaries
+- **Missing Records Alert**: Displays records not found in database
 - **Progress Indicators**: Visual feedback during file processing
 - **Error Handling**: Clear error messages and graceful failure handling
+
+## Complete Workflow
+
+### Stage 1: Daily Order Processing
+
+1. **Upload Daily File**
+   - Upload Excel file with daily orders
+   - File structure: Headers at row 0, data from row 1
+   - Columns: A (Master Ref), B (SID), C (ISBN), D (Desp Date), E (Quantity), F (Cover Spec), G (Part Number), H (Delivery Dest)
+
+2. **Processing**
+   - System detects daily order file (≤10 columns)
+   - Performs ISBN lookups in database
+   - Enhances records with specifications
+   - Maps part numbers to paper specs
+   - Adds blank WiNumber column
+
+3. **Download ASR File**
+   - Downloads enhanced file as "ASR_Daily_Order_YYYY-MM-DD_HH-MM-SS.xlsx"
+   - Contains 23 columns with complete specifications
+   - WiNumber column is blank, ready for external population
+
+### Stage 2: Job Generation
+
+1. **WiNumber Population**
+   - External system populates WiNumber values in ASR file
+   - File is returned with WiNumbers filled in
+
+2. **Upload Updated ASR File**
+   - Upload the ASR file with populated WiNumbers
+   - System detects Job Mode (numeric WiNumbers present)
+   - Skips database lookups (uses existing data)
+
+3. **Generate Job.xlsx**
+   - Job.xlsx download button becomes available
+   - Downloads as "Job.xlsx" (no timestamp)
+   - Contains production-ready data with proper field mapping
 
 ## Setup
 
@@ -48,30 +121,62 @@ A web application for processing daily Excel uploads and transforming them into 
    - **Local**: Use Python `python -m http.server` or Node.js live server
    - **Production**: Upload to web hosting platform
 
-## Usage
+## File Structures
 
-### Processing Files
+### Daily Order File Structure
+```
+Row 0: [MASTER REF, SID, ISBN, DESP DATE, QUANTITY W.I., COVER SPEC, LINE 1 ALLOC PART NO, DELIVERY DEST]
+Row 1: [SCT284, TGC513, 9781847249616, 45982, 160, C400P2, 20234:52:546, HHC]
+Row 2: [SCT418, TGC489, 9780755353941, 45982, 144, C406P2, 20234:52:546, HHC]
+```
 
-1. **Upload Excel File**
-   - Click "Browse Files" and select your daily Excel file
-   - Only .xlsx and .xls formats are supported
+### ASR File Structure (23 columns)
+Columns in order:
+1. Master Ref - From upload or database
+2. WiNumber - Blank initially, populated externally
+3. OrderRef - From upload
+4. Title - From database
+5. ISBN - From upload
+6. Extent - From database
+7. Bind Style - From database
+8. Trim Height - From database
+9. Trim Width - From database
+10. Spine - From database
+11. Delivery Date - From upload
+12. Quantity - From upload
+13. Cover Spec - From upload or database
+14. Cover Spec Decoded - Auto-generated
+15. Price UK - From database
+16. Price US - From database
+17. Price CAN - From database
+18. Paper - From part number mapping
+19. GSM - From part number mapping
+20. Micron - From part number mapping
+21. Packing - From database
+22. Bleeds - From database
+23. Delivery Dest - From upload
 
-2. **Review Results**
-   - Check the Processing Summary for match statistics
-   - Review any Missing Records that couldn't be found in database
+### Job.xlsx Structure (16 columns)
+Maps ASR data to production system format:
 
-3. **Download Output**
-   - Click "Download Processed File" to get enhanced Excel file
-   - File includes Master Ref as Column A plus all database specifications
-
-### Expected Excel Structure
-
-The application reads these columns from your upload:
-- **Column C**: SID
-- **Column F**: ISBN (used for database lookup)
-- **Column L**: Delivery Date
-- **Column M**: Quantity
-- **Column T**: Delivery Destination
+| Job Column | Source | Value/Logic |
+|------------|--------|-------------|
+| _ACTION_ | Static | "U" |
+| primaryKey | WiNumber | From ASR file |
+| job | WiNumber | Same as primaryKey |
+| poNum | OrderRef | From ASR file |
+| description | Title | From ASR file |
+| U_LimpISBN | ISBN | From ASR file |
+| U_BindingMethod | Static | "Limp P/Bound" |
+| U_HeadTrim | Static | "3mm" |
+| description2 | Packing | From ASR file |
+| U_fileDate | Static | "" (empty) |
+| U_ProcessedDate | Generated | Current date |
+| scheduledShipDate | Delivery Date | From ASR file |
+| shipToJobContact | Static | "" (empty) |
+| U_CoverPrice_UK | Price UK | From ASR file |
+| U_CoverPrice_US | Price US | From ASR file |
+| U_CoverPrice_CAD | Price CAN | From ASR file |
 
 ### Database Format
 
@@ -101,33 +206,6 @@ Your `data.json` should contain an array of book objects:
 ]
 ```
 
-## Output Structure
-
-The downloaded Excel file contains these columns in order:
-
-1. **Master Ref** - From database (Master Order ID)
-2. **SID** - From upload Column C
-3. **Title** - From database
-4. **ISBN** - From upload Column F (formatted as number)
-5. **Extent** - From database
-6. **Bind Style** - From database
-7. **Trim Height** - From database  
-8. **Trim Width** - From database
-9. **Spine** - From database
-10. **Delivery Date** - From upload Column L
-11. **Quantity** - From upload Column M
-12. **Cover Spec** - From database
-13. **Cover Spec Decoded** - Automatically decoded specifications
-14. **Price UK** - From database
-15. **Price US** - From database
-16. **Price CAN** - From database
-17. **Paper** - From database
-18. **GSM** - From database
-19. **Micron** - From database
-20. **Packing** - From database
-21. **Bleeds** - From database
-22. **Delivery Dest** - From upload Column T
-
 ## Cover Specification Decoder
 
 The application includes a comprehensive decoder that translates codes like "C406P2":
@@ -148,9 +226,35 @@ The application includes a comprehensive decoder that translates codes like "C40
 - **Weights**: Various GSM options (130-260 gsm)
 - **Special Processes**: Foiling, embossing, spot UV, and more
 
+## File Naming Conventions
+
+- **ASR Daily Order**: `ASR_Daily_Order_YYYY-MM-DD_HH-MM-SS.xlsx`
+- **Order Acceptance**: `ASR_Order_Acceptance_YYYY-MM-DD_HH-MM-SS.xlsx`
+- **Job File**: `Job.xlsx` (static name)
+
+## Mode Detection
+
+The system automatically detects file types and processing modes:
+
+### Daily Order Mode
+- **Trigger**: File has ≤10 columns
+- **Processing**: Database lookups, enhancement, part number mapping
+- **Output**: ASR Daily Order file with blank WiNumbers
+- **UI**: Shows processing summary, missing records (if any)
+
+### Job Mode
+- **Trigger**: File has populated numeric WiNumbers in column B
+- **Processing**: Direct column mapping, no database lookups
+- **Output**: Job.xlsx file ready for production
+- **UI**: Shows "Job Mode" interface, Job export ready
+
 ## Troubleshooting
 
 ### Common Issues
+
+**Wrong Mode Detection**
+- Daily files detected as Job Mode: Check if column B contains numeric values
+- ASR files detected as Daily Mode: Ensure WiNumbers are numeric, not text
 
 **No Database Matches**
 - Verify `data.json` is in the same directory as `index.html`
@@ -162,23 +266,25 @@ The application includes a comprehensive decoder that translates codes like "C40
 - Check file isn't corrupted or password protected
 - Verify file contains data in the expected columns
 
-**Missing Records**
-- Use the "Copy Missing List" button to export problematic records
-- Check if ISBNs need to be added to your database
-- Verify ISBN formatting consistency between upload and database
+**Job.xlsx Not Available**
+- Ensure WiNumber column contains numeric values (not text)
+- Check that file is detected as ASR file (not daily order file)
+- Verify processing completed successfully
 
 ### Browser Console
 
 For debugging, check the browser console (F12) for:
+- File type detection messages
+- Mode selection logging
+- WiNumber detection status
 - Database loading messages
-- ISBN lookup attempts
 - File processing errors
 
 ## Technical Details
 
 ### Architecture
 - **Frontend**: HTML5, CSS3, JavaScript (ES6+)
-- **Styling**: Bootstrap 5.3.2 with custom CSS
+- **Styling**: Bootstrap 5.3.2 with custom CSS enhancements
 - **Icons**: Bootstrap Icons 1.11.1
 - **Excel Processing**: SheetJS (XLSX library)
 - **Data Storage**: JSON file-based (client-side only)
@@ -189,11 +295,12 @@ For debugging, check the browser console (F12) for:
 - Safari 14+
 - Edge 90+
 
-### File Processing
+### File Processing Features
 - Uses SheetJS for Excel parsing
 - Handles Excel date serial numbers
 - Formats ISBN as numbers with no decimal places
 - Preserves all data types appropriately
+- Smart column width adjustment for downloads
 
 ## Security Notes
 
@@ -212,3 +319,10 @@ This project is provided for internal use. Modify and adapt as needed for your s
 - **v1.1** - Added ISBN number formatting
 - **v1.2** - Fixed calculation errors in processing summary
 - **v1.3** - Added missing records copy functionality
+- **v1.4** - Updated column mapping for new file structure (A-H columns)
+- **v1.5** - Added WiNumber blank column and renamed SID to OrderRef
+- **v1.6** - Updated filename format to include date and time stamp
+- **v2.0** - Major update: Added Job.xlsx generation and dual-mode processing
+- **v2.1** - Implemented smart file detection and two-stage workflow support
+- **v2.2** - Fixed WiNumber detection and part number mapping improvements
+- **v2.3** - Updated Job.xlsx filename to static "Job.xlsx" format
