@@ -765,6 +765,11 @@ function downloadJobFile() {
         const wb = XLSX.utils.book_new();
         
         const jobData = processedData.map(row => {
+            // Helper function to check if value should be empty
+            const isPriceUnpriced = (price) => {
+                return !price || price.toString().toUpperCase() === 'UNPRICED';
+            };
+            
             return {
                 '_ACTION_': 'U',
                 'primaryKey': row['WiNumber'],
@@ -779,9 +784,9 @@ function downloadJobFile() {
                 'U_ProcessedDate': new Date().toLocaleDateString(),
                 'scheduledShipDate': row['Delivery Date'],
                 'shipToJobContact': '',
-                'U_CoverPrice_UK': row['Price UK'],
-                'U_CoverPrice_US': row['Price US'],
-                'U_CoverPrice_CAD': row['Price CAN']
+                'U_CoverPrice_UK': isPriceUnpriced(row['Price UK']) ? '' : row['Price UK'],
+                'U_CoverPrice_US': isPriceUnpriced(row['Price US']) ? '' : row['Price US'],
+                'U_CoverPrice_CAD': isPriceUnpriced(row['Price CAN']) ? '' : row['Price CAN']
             };
         });
         
