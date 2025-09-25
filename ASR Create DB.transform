@@ -2,16 +2,16 @@
 <root>
     <meta>
         <version value="73"/>
-        <last_saved_by value="Easy_Data_Transform_v2_0_1_on_macOS_15_6_x86_64_at_2025_09_24_07_57_28"/>
+        <last_saved_by value="Easy_Data_Transform_v2_0_1_on_macOS_15_6_x86_64_at_2025_09_25_12_16_53"/>
         <locale value="en_001"/>
-        <id value="7877050d3571070b0b747a740b0a3c"/>
+        <id value="7977050c3571070b0b747a740a0a3c"/>
         <snap_to_grid value="1"/>
         <notes/>
-        <doc_path value="%2FUsers%2Fcolingammon%2FDev%20Projects%2FClays%20ASR%20xml%20import%20to%20PACE%2FASR-Daily-Order%2FASR%20Create%20DB.transform"/>
+        <doc_path value="%2FUsers%2Fcolingammon%2FDocuments%2FGitHub%2FClays-ASR-Daily-Order-Processor%2FASR%20Create%20DB.transform"/>
         <auto_run_on value="1"/>
     </meta>
     <inputs>
-        <input worksheet="STERM" pos="-329.4^-643.5" ignored_rows="0" show_meta="0" json_arrays_as_rows="0" delimiter="0" ignore_excel_hidden_cols="0" schema_in_use="0" name="ASR_List.xls%5BSTERM%5D" schema_extra_cols="0" pos_v12="-329.4-643.5" watching="0" medium="0" auto_fixed_widths="1" path="%2FUsers%2Fcolingammon%2FDev%20Projects%2FClays%20ASR%20xml%20import%20to%20PACE%2FASR-Daily-Order%2FASR_List.xls" schema_missing_cols="0" header="1" ignore_empty_cols="0" schema_reorder_cols="0" trim="1" file_type="2" id="0" alias="REP5576" custom_delimiter="%2A" ignore_repeated_delim="0" meta_text="%24%28FilePath%29%20%24%28CurrentDateTime%29" ignore_excel_hidden_rows="0" ignore_empty="1" encoding="Automatic" quote="0" simplify="1"/>
+        <input worksheet="STERM" pos="-329.4^-643.5" ignored_rows="0" show_meta="0" json_arrays_as_rows="0" delimiter="0" ignore_excel_hidden_cols="0" schema_in_use="0" name="ASR_List.xls%5BSTERM%5D" schema_extra_cols="0" pos_v12="-329.4-643.5" watching="0" medium="0" auto_fixed_widths="1" path="%2FUsers%2Fcolingammon%2FDocuments%2FGitHub%2FClays-ASR-Daily-Order-Processor%2FASR_List.xls" schema_missing_cols="0" header="1" ignore_empty_cols="0" schema_reorder_cols="0" trim="1" file_type="2" id="0" alias="REP5576" custom_delimiter="%2A" ignore_repeated_delim="0" meta_text="%24%28FilePath%29%20%24%28CurrentDateTime%29" ignore_excel_hidden_rows="0" ignore_empty="1" encoding="Automatic" quote="0" simplify="1"/>
     </inputs>
     <transforms>
         <transform id="1" name="Remove" pos="-329.4^-523.8" pos_v12="-329.4-523.8">
@@ -60,8 +60,8 @@
         </transform>
     </transforms>
     <outputs>
-        <output enable_output="1" pos="149.4^-404.1" delimiter="1" html_encode="1" excel_output="0" multi_file_confirm="1" multi_file_column="0" name="ASR_Clean_Data.xlsx" json_manual_col_types="00000000000000000" write_header_first_append_only="1" bom="1" pos_v12="149.4-404.1" excel_use_style_template="0" single_or_multi="0" overwrite_sheet="1" path="%2FUsers%2Fcolingammon%2FDev%20Projects%2FClays%20ASR%20xml%20import%20to%20PACE%2FASR-Daily-Order%2FASR_Clean_Data.xlsx" xml_root="root" remove_empty="1" file_type="1" id="9" custom_delimiter="%2A" alias="ASR_Clean_Data" file_comment="%20File%20created%20by%20Easy%20Data%20Transform%20%7Bversion%7D%20at%20%7Bdate%7D%20%7Btime%7D%20" write_header="1" excel_manual_col_formats="00000000000000000" json_types="0" xml_row="record" encoding="UTF-8" line_endings="0" quote="0"/>
-        <output enable_output="1" pos="149.4^-284.4" delimiter="1" html_encode="1" excel_output="0" multi_file_confirm="1" multi_file_column="0" name="data.json" json_manual_col_types="00000000000000000" write_header_first_append_only="1" bom="0" pos_v12="149.4-284.4" excel_use_style_template="0" single_or_multi="0" overwrite_sheet="1" path="%2FUsers%2Fcolingammon%2FDev%20Projects%2FClays%20ASR%20xml%20import%20to%20PACE%2FASR-Daily-Order%2Fdata.json" xml_root="root" remove_empty="0" file_type="4" id="10" custom_delimiter="%2A" alias="data" file_comment="%20File%20created%20by%20Easy%20Data%20Transform%20%7Bversion%7D%20at%20%7Bdate%7D%20%7Btime%7D%20" write_header="1" excel_manual_col_formats="00000000000000000" json_types="0" xml_row="record" encoding="UTF-8" line_endings="0" quote="0"/>
+        <output enable_output="1" pos="149.4^-404.1" delimiter="1" html_encode="1" excel_output="0" multi_file_confirm="1" multi_file_column="0" name="ASR_Clean_Data.xlsx" json_manual_col_types="00000000000000000" write_header_first_append_only="1" bom="1" pos_v12="149.4-404.1" excel_use_style_template="0" single_or_multi="0" overwrite_sheet="1" path="%2FUsers%2Fcolingammon%2FDocuments%2FGitHub%2FClays-ASR-Daily-Order-Processor%2FASR_Clean_Data.xlsx" xml_root="root" remove_empty="1" file_type="1" id="9" custom_delimiter="%2A" alias="ASR_Clean_Data" file_comment="%20File%20created%20by%20Easy%20Data%20Transform%20%7Bversion%7D%20at%20%7Bdate%7D%20%7Btime%7D%20" write_header="1" excel_manual_col_formats="00000000000000000" json_types="0" xml_row="record" encoding="UTF-8" line_endings="0" quote="0"/>
+        <output enable_output="1" pos="149.4^-284.4" delimiter="1" html_encode="1" excel_output="0" multi_file_confirm="1" multi_file_column="0" name="data.json" json_manual_col_types="00000000000000000" write_header_first_append_only="1" bom="0" pos_v12="149.4-284.4" excel_use_style_template="0" single_or_multi="0" overwrite_sheet="1" path="%2FUsers%2Fcolingammon%2FDocuments%2FGitHub%2FClays-ASR-Daily-Order-Processor%2Fdata.json" xml_root="root" remove_empty="0" file_type="4" id="10" custom_delimiter="%2A" alias="data" file_comment="%20File%20created%20by%20Easy%20Data%20Transform%20%7Bversion%7D%20at%20%7Bdate%7D%20%7Btime%7D%20" write_header="1" excel_manual_col_formats="00000000000000000" json_types="0" xml_row="record" encoding="UTF-8" line_endings="0" quote="0"/>
     </outputs>
     <notes/>
     <connections>
