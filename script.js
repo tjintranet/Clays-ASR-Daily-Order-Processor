@@ -454,11 +454,21 @@ function formatDate(dateValue) {
         if (typeof dateValue === 'number') {
             const excelEpoch = new Date(1900, 0, 1);
             const jsDate = new Date(excelEpoch.getTime() + (dateValue - 2) * 24 * 60 * 60 * 1000);
-            return jsDate.toLocaleDateString();
+            // Format as DD/MM/YYYY
+            const day = String(jsDate.getDate()).padStart(2, '0');
+            const month = String(jsDate.getMonth() + 1).padStart(2, '0');
+            const year = jsDate.getFullYear();
+            return `${day}/${month}/${year}`;
         }
         
         const date = new Date(dateValue);
-        return isNaN(date.getTime()) ? dateValue : date.toLocaleDateString();
+        if (isNaN(date.getTime())) return dateValue;
+        
+        // Format as DD/MM/YYYY
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
     } catch (error) {
         return dateValue;
     }
@@ -770,6 +780,13 @@ function downloadJobFile() {
                 return !price || price.toString().toUpperCase() === 'UNPRICED';
             };
             
+            // Format current date as DD/MM/YYYY
+            const now = new Date();
+            const day = String(now.getDate()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const year = now.getFullYear();
+            const processedDate = `${day}/${month}/${year}`;
+            
             return {
                 '_ACTION_': 'U',
                 'primaryKey': row['WiNumber'],
@@ -781,7 +798,7 @@ function downloadJobFile() {
                 'U_HeadTrim': '3mm',
                 'description2': row['Packing'],
                 'U_fileDate': '',
-                'U_ProcessedDate': new Date().toLocaleDateString(),
+                'U_ProcessedDate': processedDate,
                 'scheduledShipDate': row['Delivery Date'],
                 'shipToJobContact': '',
                 'U_CoverPrice_UK': isPriceUnpriced(row['Price UK']) ? '' : row['Price UK'],
